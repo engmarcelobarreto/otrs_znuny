@@ -55,7 +55,7 @@ RUN ln -s /opt/znuny/scripts/apache2-httpd.include.conf /etc/apache2/conf-availa
     && a2enconf znuny \
     # --- ESTA É A LINHA MÁGICA ---
     # Altera a configuração do Apache para servir o Znuny na raiz (/) em vez de /znuny/
-    && sed -i 's/ScriptAlias \/znuny/ScriptAlias \//g' /opt/znuny/scripts/apache2-httpd.include.conf
+    && sed -i 's/\/znuny\//\//g' /opt/znuny/scripts/apache2-httpd.include.conf
 
 # Script de inicialização (sem mudanças)
 COPY <<'EOF' /opt/znuny_starter.sh

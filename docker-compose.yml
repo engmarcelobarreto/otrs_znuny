@@ -15,26 +15,23 @@ services:
       - znuny-net
     restart: always
 
-  # NOVO SERVIÇO: LANDING PAGE
+  # LANDING PAGE (linha 'priority' removida)
   landing-page:
     image: nginx:alpine
     container_name: landing-page
     volumes:
-      # Mapeia a pasta com nosso HTML para a pasta padrão do Nginx
       - "./landing-page:/usr/share/nginx/html:ro"
     labels:
       - "traefik.enable=true"
-      # Rota para o domínio principal (prioridade baixa)
       - "traefik.http.routers.landingpage.rule=Host(`portal.grupoga230.com.br`)"
       - "traefik.http.routers.landingpage.entrypoints=websecure"
       - "traefik.http.routers.landingpage.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.landingpage.priority=1"
       - "traefik.http.services.landingpage.loadbalancer.server.port=80"
     networks:
       - znuny-net
     restart: always
 
-  # SERVIÇO ZNUNY MODIFICADO
+  # SERVIÇO ZNUNY (linha 'priority' removida)
   znuny-app:
     build:
       context: .
@@ -48,14 +45,11 @@ services:
       - znuny_app_data:/opt/znuny/var
     labels:
       - "traefik.enable=true"
-      # Nova regra: Acessível apenas no caminho /servicedesk (prioridade alta)
       - "traefik.http.routers.znuny.rule=Host(`portal.grupoga230.com.br`) && PathPrefix(`/servicedesk`)"
       - "traefik.http.routers.znuny.entrypoints=websecure"
       - "traefik.http.routers.znuny.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.znuny.priority=2"
-      # Middleware para remover o prefixo /servicedesk antes de enviar para o container
       - "traefik.http.middlewares.strip-servicedesk.stripprefix.prefixes=/servicedesk"
-      - "traefik.http.routers.znuny.middlewares=strip-servicedesk"
+      - "traefik.http.routers.znuny.middlewares=strip-servicedesk@docker"
       - "traefik.http.services.znuny.loadbalancer.server.port=80"
     networks:
       - znuny-net
