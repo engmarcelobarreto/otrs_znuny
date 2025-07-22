@@ -15,7 +15,7 @@ services:
       - znuny-net
     restart: always
 
-  # LANDING PAGE (linha 'priority' removida)
+  # LANDING PAGE (sem mudanças)
   landing-page:
     image: nginx:alpine
     container_name: landing-page
@@ -31,7 +31,7 @@ services:
       - znuny-net
     restart: always
 
-  # SERVIÇO ZNUNY (linha 'priority' removida)
+  # SERVIÇO ZNUNY (depends_on atualizado)
   znuny-app:
     build:
       context: .
@@ -40,7 +40,8 @@ services:
         - ZNUNY_VERSION=7.1
     container_name: znuny-app
     depends_on:
-      - db
+      db:
+        condition: service_healthy # <-- MUDANÇA AQUI
     volumes:
       - znuny_app_data:/opt/znuny/var
     labels:
@@ -55,13 +56,18 @@ services:
       - znuny-net
     restart: always
 
-  # SERVIÇO DO BANCO (sem mudanças)
+  # SERVIÇO DO BANCO (healthcheck adicionado)
   db:
     image: mysql:8.0
     container_name: znuny-mysql-db
     command:
       - '--default-authentication-plugin=mysql_native_password'
       - '--innodb_log_file_size=256M'
+    healthcheck: # <-- MUDANÇA AQUI
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     environment:
       - MYSQL_ROOT_PASSWORD=Birosca1967!
       - MYSQL_DATABASE=znuny_db

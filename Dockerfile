@@ -1,34 +1,18 @@
 FROM debian:11-slim
 
 ARG ZNUNY_VERSION
-
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Instalação de pacotes (sem mudanças)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    procps wget apache2 libapache2-mod-perl2 cron \
-    libjson-xs-perl \
-    libxml-libxml-perl \
-    libxml-libxslt-perl \
-    libyaml-libyaml-perl \
-    libcrypt-eksblowfish-perl \
-    libencode-hanextra-perl \
-    libmail-imapclient-perl \
-    libtemplate-perl \
-    libpackage-stash-perl \
-    libarchive-zip-perl \
-    libauthen-sasl-perl \
-    libdata-uuid-perl \
-    libdatetime-perl \
-    libhash-merge-perl \
-    libical-parser-perl \
-    libmoo-perl \
-    libnet-dns-perl \
-    libtext-csv-xs-perl \
-    libxml-parser-perl \
-    libnet-ldap-perl \
-    libspreadsheet-xlsx-perl \
-    libdbd-mysql-perl \
+    procps wget apache2 libapache2-mod-perl2 cron libjson-xs-perl \
+    libxml-libxml-perl libxml-libxslt-perl libyaml-libyaml-perl \
+    libcrypt-eksblowfish-perl libencode-hanextra-perl libmail-imapclient-perl \
+    libtemplate-perl libpackage-stash-perl libarchive-zip-perl \
+    libauthen-sasl-perl libdata-uuid-perl libdatetime-perl \
+    libhash-merge-perl libical-parser-perl libmoo-perl \
+    libnet-dns-perl libtext-csv-xs-perl libxml-parser-perl \
+    libnet-ldap-perl libspreadsheet-xlsx-perl libdbd-mysql-perl \
     && rm -rf /var/lib/apt/lists/*
 
 # Download e instalação do Znuny (sem mudanças)
@@ -46,16 +30,14 @@ RUN useradd -d /opt/znuny -c 'Znuny user' znuny \
     && chmod -R ug+rw /opt/znuny \
     && /opt/znuny/bin/znuny.CheckModules.pl
 
-# Configuração do Apache (COM A CORREÇÃO)
+# --- MUDANÇA PRINCIPAL AQUI ---
+# Copia nossa configuração customizada do Apache para dentro da imagem
+COPY znuny-apache.conf /opt/znuny/scripts/apache2-httpd.include.conf
+
+# Configuração do Apache (agora usa o nosso arquivo)
 RUN ln -s /opt/znuny/scripts/apache2-httpd.include.conf /etc/apache2/conf-available/znuny.conf \
-    && a2enmod perl \
-    && a2enmod deflate \
-    && a2enmod filter \
-    && a2enmod headers \
-    && a2enconf znuny \
-    # --- ESTA É A LINHA MÁGICA ---
-    # Altera a configuração do Apache para servir o Znuny na raiz (/) em vez de /znuny/
-    && sed -i 's/\/znuny\//\//g' /opt/znuny/scripts/apache2-httpd.include.conf
+    && a2enmod perl && a2enmod deflate && a2enmod filter && a2enmod headers \
+    && a2enconf znuny
 
 # Script de inicialização (sem mudanças)
 COPY <<'EOF' /opt/znuny_starter.sh
