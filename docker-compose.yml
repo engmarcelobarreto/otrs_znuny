@@ -1,5 +1,5 @@
 services:
-  # SERVIÇO TRAEFIK (sem mudanças)
+  # O Traefik continua rodando, mas não vai mais gerenciar o znuny-app por enquanto
   traefik:
     image: "traefik:v3.0"
     container_name: "traefik-proxy"
@@ -15,7 +15,7 @@ services:
       - znuny-net
     restart: always
 
-  # LANDING PAGE (sem mudanças)
+  # Landing page continua normal
   landing-page:
     image: nginx:alpine
     container_name: landing-page
@@ -31,7 +31,7 @@ services:
       - znuny-net
     restart: always
 
-  # SERVIÇO ZNUNY (depends_on atualizado)
+  # --- MUDANÇAS IMPORTANTES NO ZNUNY-APP ---
   znuny-app:
     build:
       context: .
@@ -41,29 +41,27 @@ services:
     container_name: znuny-app
     depends_on:
       db:
-        condition: service_healthy # <-- MUDANÇA AQUI
+        condition: service_healthy
+    # Expõe a porta 80 do container na porta 8088 do seu servidor
+    ports:
+      - "8088:80"
     volumes:
       - znuny_app_data:/opt/znuny/var
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.znuny.rule=Host(`portal.grupoga230.com.br`) && PathPrefix(`/servicedesk`)"
-      - "traefik.http.routers.znuny.entrypoints=websecure"
-      - "traefik.http.routers.znuny.tls.certresolver=letsencrypt"
-      - "traefik.http.middlewares.strip-servicedesk.stripprefix.prefixes=/servicedesk"
-      - "traefik.http.routers.znuny.middlewares=strip-servicedesk@docker"
-      - "traefik.http.services.znuny.loadbalancer.server.port=80"
+      # Mapeia o Config.pm para garantir a conexão com o BD
+      - ./Config.pm:/opt/znuny/Kernel/Config.pm:ro
+    # A seção 'labels' foi REMOVIDA para este teste
     networks:
       - znuny-net
     restart: always
 
-  # SERVIÇO DO BANCO (healthcheck adicionado)
+  # SERVIÇO DO BANCO (com healthcheck)
   db:
     image: mysql:8.0
     container_name: znuny-mysql-db
     command:
       - '--default-authentication-plugin=mysql_native_password'
       - '--innodb_log_file_size=256M'
-    healthcheck: # <-- MUDANÇA AQUI
+    healthcheck:
       test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
       interval: 10s
       timeout: 5s
