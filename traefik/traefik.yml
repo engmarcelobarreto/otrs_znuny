@@ -1,0 +1,30 @@
+# traefik/traefik.yml
+log:
+  level: INFO
+
+api:
+  insecure: true # Habilita o dashboard em http://localhost:8081 (apenas para debug inicial)
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+  websecure:
+    address: ":443"
+
+providers:
+  docker:
+    exposedByDefault: false
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: "marcelo.barreto@grupoga230.com.br" # <-- MUITO IMPORTANTE: Coloque seu e-mail aqui
+      storage: "/letsencrypt/acme.json"
+      httpChallenge:
+        entryPoint: web
+
