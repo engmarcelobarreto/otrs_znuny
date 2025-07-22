@@ -1,0 +1,77 @@
+services:
+  # NOVO SERVIÇO: TRAEFIK (PROXY REVERSO)
+  traefik:
+    image: "traefik:v3.0"
+    container_name: "traefik-proxy"
+    command:
+      - "--api.insecure=true" # Habilita o dashboard na porta 8080
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.letsencrypt.acme.email=marcelo.barreto@grupoga230.com.br" # <-- Coloque seu e-mail aqui novamente
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+    ports:
+      - "80:80"   # Porta para tráfego HTTP
+      - "443:443" # Porta para tráfego HTTPS
+      - "8081:8080" # Porta para o dashboard do Traefik (opcional)
+    volumes:
+      - "./traefik/acme.json:/letsencrypt/acme.json"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - znuny-net
+    restart: always
+
+  # SERVIÇO ZNUNY MODIFICADO
+  znuny-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - ZNUNY_VERSION=7.1
+    container_name: znuny-app
+    depends_on:
+      - db
+    volumes:
+      - znuny_app_data:/opt/znuny/var
+    # A seção 'ports' foi REMOVIDA daqui. O Traefik gerencia o acesso.
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.znuny.rule=Host(`portal.grupoga230.com.br`)"
+      - "traefik.http.routers.znuny.entrypoints=websecure"
+      - "traefik.http.routers.znuny.tls.certresolver=letsencrypt"
+      - "traefik.http.middlewares.https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.web-redirect.rule=Host(`portal.grupoga230.com.br`)"
+      - "traefik.http.routers.web-redirect.entrypoints=web"
+      - "traefik.http.routers.web-redirect.middlewares=https-redirect"
+      - "traefik.http.services.znuny.loadbalancer.server.port=80"
+    networks:
+      - znuny-net
+    restart: always
+
+  # SERVIÇO DO BANCO (SEM MUDANÇAS)
+  db:
+    image: mysql:8.0
+    container_name: znuny-mysql-db
+    command:
+      - '--default-authentication-plugin=mysql_native_password'
+      - '--innodb_log_file_size=256M'
+    environment:
+      - MYSQL_ROOT_PASSWORD=Birosca1967!
+      - MYSQL_DATABASE=znuny_db
+      - MYSQL_USER=znuny_user
+      - MYSQL_PASSWORD=Birosca1967!
+    volumes:
+      - znuny_db_data:/var/lib/mysql
+    networks:
+      - znuny-net
+    restart: always
+
+volumes:
+  znuny_db_data:
+  znuny_app_data:
+
+networks:
+  znuny-net:
