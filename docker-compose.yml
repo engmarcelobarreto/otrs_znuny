@@ -46,7 +46,6 @@ services:
       - db
     volumes:
       - znuny_app_data:/opt/znuny/var
-      - ./CustomConfig.pm:/opt/znuny/Kernel/Config/Files/CustomConfig.pm:ro
     labels:
       - "traefik.enable=true"
       # Nova regra: Acessível apenas no caminho /servicedesk (prioridade alta)

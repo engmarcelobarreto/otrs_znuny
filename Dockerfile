@@ -4,7 +4,7 @@ ARG ZNUNY_VERSION
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Adicionado o pacote 'cron' na lista de instalação
+# Instalação de pacotes (sem mudanças)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     procps wget apache2 libapache2-mod-perl2 cron \
     libjson-xs-perl \
@@ -31,11 +31,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libdbd-mysql-perl \
     && rm -rf /var/lib/apt/lists/*
 
+# Download e instalação do Znuny (sem mudanças)
 RUN wget https://download.znuny.org/releases/znuny-${ZNUNY_VERSION}.tar.gz -O /tmp/znuny.tar.gz \
     && tar -xzf /tmp/znuny.tar.gz -C /opt \
     && mv /opt/znuny-* /opt/znuny \
     && rm /tmp/znuny.tar.gz
 
+# Configuração de usuário e permissões (sem mudanças)
 RUN useradd -d /opt/znuny -c 'Znuny user' znuny \
     && usermod -g www-data znuny \
     && cd /opt/znuny \
@@ -44,26 +46,24 @@ RUN useradd -d /opt/znuny -c 'Znuny user' znuny \
     && chmod -R ug+rw /opt/znuny \
     && /opt/znuny/bin/znuny.CheckModules.pl
 
+# Configuração do Apache (COM A CORREÇÃO)
 RUN ln -s /opt/znuny/scripts/apache2-httpd.include.conf /etc/apache2/conf-available/znuny.conf \
     && a2enmod perl \
     && a2enmod deflate \
     && a2enmod filter \
     && a2enmod headers \
-    && a2enconf znuny
+    && a2enconf znuny \
+    # --- ESTA É A LINHA MÁGICA ---
+    # Altera a configuração do Apache para servir o Znuny na raiz (/) em vez de /znuny/
+    && sed -i 's/ScriptAlias \/znuny/ScriptAlias \//g' /opt/znuny/scripts/apache2-httpd.include.conf
 
+# Script de inicialização (sem mudanças)
 COPY <<'EOF' /opt/znuny_starter.sh
 #!/bin/bash
 set -e
-
 rm -f /var/run/apache2/apache2.pid
-
-# Inicia o agendador de tarefas do Znuny
 su -c "/opt/znuny/bin/Cron.sh start" -s /bin/bash znuny
-
-# Inicia o Daemon do Znuny
 su -c "/opt/znuny/bin/znuny.Daemon.pl start" -s /bin/bash znuny
-
-# Inicia o servidor web Apache em primeiro plano
 exec /usr/sbin/apache2ctl -D FOREGROUND
 EOF
 RUN chmod +x /opt/znuny_starter.sh
@@ -71,4 +71,3 @@ RUN chmod +x /opt/znuny_starter.sh
 EXPOSE 80
 
 CMD ["/opt/znuny_starter.sh"]
-
