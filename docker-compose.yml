@@ -1,25 +1,35 @@
 services:
-  # NOVO SERVIÇO: TRAEFIK (PROXY REVERSO)
+  # SERVIÇO TRAEFIK (sem mudanças)
   traefik:
     image: "traefik:v3.0"
     container_name: "traefik-proxy"
-    command:
-      - "--api.insecure=true" # Habilita o dashboard na porta 8080
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      - "--certificatesresolvers.letsencrypt.acme.email=marcelo.barreto@grupoga230.com.br" # <-- Coloque seu e-mail aqui novamente
-      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
-      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
-      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
     ports:
-      - "80:80"   # Porta para tráfego HTTP
-      - "443:443" # Porta para tráfego HTTPS
-      - "8081:8080" # Porta para o dashboard do Traefik (opcional)
+      - "80:80"
+      - "443:443"
+      - "8081:8080"
     volumes:
+      - "./traefik/traefik.yml:/etc/traefik/traefik.yml:ro"
       - "./traefik/acme.json:/letsencrypt/acme.json"
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - znuny-net
+    restart: always
+
+  # NOVO SERVIÇO: LANDING PAGE
+  landing-page:
+    image: nginx:alpine
+    container_name: landing-page
+    volumes:
+      # Mapeia a pasta com nosso HTML para a pasta padrão do Nginx
+      - "./landing-page:/usr/share/nginx/html:ro"
+    labels:
+      - "traefik.enable=true"
+      # Rota para o domínio principal (prioridade baixa)
+      - "traefik.http.routers.landingpage.rule=Host(`portal.grupoga230.com.br`)"
+      - "traefik.http.routers.landingpage.entrypoints=websecure"
+      - "traefik.http.routers.landingpage.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.landingpage.priority=1"
+      - "traefik.http.services.landingpage.loadbalancer.server.port=80"
     networks:
       - znuny-net
     restart: always
@@ -36,22 +46,22 @@ services:
       - db
     volumes:
       - znuny_app_data:/opt/znuny/var
-    # A seção 'ports' foi REMOVIDA daqui. O Traefik gerencia o acesso.
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.znuny.rule=Host(`portal.grupoga230.com.br`)"
+      # Nova regra: Acessível apenas no caminho /servicedesk (prioridade alta)
+      - "traefik.http.routers.znuny.rule=Host(`portal.grupoga230.com.br`) && PathPrefix(`/servicedesk`)"
       - "traefik.http.routers.znuny.entrypoints=websecure"
       - "traefik.http.routers.znuny.tls.certresolver=letsencrypt"
-      - "traefik.http.middlewares.https-redirect.redirectscheme.scheme=https"
-      - "traefik.http.routers.web-redirect.rule=Host(`portal.grupoga230.com.br`)"
-      - "traefik.http.routers.web-redirect.entrypoints=web"
-      - "traefik.http.routers.web-redirect.middlewares=https-redirect"
+      - "traefik.http.routers.znuny.priority=2"
+      # Middleware para remover o prefixo /servicedesk antes de enviar para o container
+      - "traefik.http.middlewares.strip-servicedesk.stripprefix.prefixes=/servicedesk"
+      - "traefik.http.routers.znuny.middlewares=strip-servicedesk"
       - "traefik.http.services.znuny.loadbalancer.server.port=80"
     networks:
       - znuny-net
     restart: always
 
-  # SERVIÇO DO BANCO (SEM MUDANÇAS)
+  # SERVIÇO DO BANCO (sem mudanças)
   db:
     image: mysql:8.0
     container_name: znuny-mysql-db

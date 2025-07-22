@@ -1,13 +1,17 @@
 # traefik/traefik.yml
 log:
-  level: INFO
+  level: DEBUG
 
+# Habilita a API/Dashboard do Traefik
 api:
-  insecure: true # Habilita o dashboard em http://localhost:8081 (apenas para debug inicial)
+  dashboard: true
+  insecure: true # Permite acesso na porta 8080 (ótimo para debug)
 
+# Define os pontos de entrada para o tráfego web
 entryPoints:
   web:
     address: ":80"
+    # Configura um redirecionamento global de HTTP para HTTPS
     http:
       redirections:
         entryPoint:
@@ -16,15 +20,16 @@ entryPoints:
   websecure:
     address: ":443"
 
+# Habilita o Docker como provedor de configuração
 providers:
   docker:
     exposedByDefault: false
 
+# Configura o resolvedor de certificados da Let's Encrypt
 certificatesResolvers:
   letsencrypt:
     acme:
-      email: "marcelo.barreto@grupoga230.com.br" # <-- MUITO IMPORTANTE: Coloque seu e-mail aqui
+      email: "marcelo.barreto@grupoga230.com.br"
       storage: "/letsencrypt/acme.json"
       httpChallenge:
         entryPoint: web
-
